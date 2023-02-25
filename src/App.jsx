@@ -1,10 +1,10 @@
 import './App.css'
-import { Canvas, useFrame, useThree, } from '@react-three/fiber'
 import * as THREE from 'three'
-import { PointerLockControls, useKeyboardControls, KeyboardControls } from '@react-three/drei'
 import React, { Suspense, useRef, useEffect } from 'react'
-import { Physics, RigidBody, RapierRigidBody, CapsuleCollider, Debug } from '@react-three/rapier'
 import { PerspectiveCamera } from 'three'
+import { Canvas, useFrame, useThree, } from '@react-three/fiber'
+import { PointerLockControls, useKeyboardControls, KeyboardControls } from '@react-three/drei'
+import { Physics, RigidBody, RapierRigidBody, CapsuleCollider, Debug } from '@react-three/rapier'
 
 
 function Orb() {
@@ -42,9 +42,14 @@ function Player() {
         const { forward, backward, left, right } = get()
         const velocity = rigidBody.current.linvel()
 
+        // check if rigid body has been initialized, will crash otherwise
         if (rigidBody.current) {
+
+            // lock camera to player rigid body
             let playerPosition = rigidBody.current.translation()
             state.camera.position.set(playerPosition.x, playerPosition.y, playerPosition.z)
+
+            // strafing movement
             frontVector.set(0, 0, backward - forward)
             sideVector.set(left - right, 0, 0)
             direction.subVectors(frontVector, sideVector).normalize().multiplyScalar(SPEED).applyEuler(state.camera.rotation)
@@ -53,7 +58,7 @@ function Player() {
     })
 
     return (
-        <RigidBody ref={rigidBody} >
+        <RigidBody ref={rigidBody} colliders={false} mass={1} type="dynamic" position={[0, 10, 0]} enabledRotations={[false, false, false]} >
             <CapsuleCollider args={[.75, .5]} />
         </RigidBody>
     )
@@ -63,12 +68,12 @@ function App() {
     return (
         <div id="canvas-container">
             <KeyboardControls map={[
-                { name: "forward", keys: ["ArrowUp", "w", "W"] },
+                { name: "forward", keys: ["ArrowUp", "f", "W"] },
                 { name: "backward", keys: ["ArrowDown", "s", "S"] },
-                { name: "left", keys: ["ArrowLeft", "a", "A"] },
-                { name: "right", keys: ["ArrowRight", "d", "D"] },
+                { name: "left", keys: ["ArrowLeft", "r", "A"] },
+                { name: "right", keys: ["ArrowRight", "t", "D"] },
             ]}>
-                <Canvas >
+                <Canvas camera={{ fov: 120 }} >
                     <PointerLockControls />
                     <Suspense>
                         <Physics gravity={[0, -9.8, 0]}>
