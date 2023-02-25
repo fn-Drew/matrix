@@ -1,10 +1,11 @@
 import './App.css'
 import * as THREE from 'three'
+import * as RAPIER from '@dimforge/rapier3d-compat'
 import React, { Suspense, useRef, useEffect } from 'react'
 import { PerspectiveCamera } from 'three'
 import { Canvas, useFrame, useThree, } from '@react-three/fiber'
 import { PointerLockControls, useKeyboardControls, KeyboardControls } from '@react-three/drei'
-import { Physics, RigidBody, RapierRigidBody, CapsuleCollider, Debug } from '@react-three/rapier'
+import { Physics, RigidBody, useRapier, CapsuleCollider, Debug } from '@react-three/rapier'
 
 
 function Orb() {
@@ -29,36 +30,44 @@ function Floor() {
 }
 
 function Player() {
-    const rigidBody = useRef()
+    const player = useRef()
 
-    const SPEED = 5
+    const SPEED = 10
     const direction = new THREE.Vector3()
     const frontVector = new THREE.Vector3()
     const sideVector = new THREE.Vector3()
 
+    const rapier = useRapier()
+
     const [, get] = useKeyboardControls()
 
     useFrame((state) => {
-        const { forward, backward, left, right } = get()
-        const velocity = rigidBody.current.linvel()
+        const { forward, backward, left, right, jump } = get()
+        const velocity = player.current.linvel()
 
         // check if rigid body has been initialized, will crash otherwise
-        if (rigidBody.current) {
+        if (player.current) {
 
             // lock camera to player rigid body
-            let playerPosition = rigidBody.current.translation()
+            let playerPosition = player.current.translation()
             state.camera.position.set(playerPosition.x, playerPosition.y, playerPosition.z)
 
             // strafing movement
             frontVector.set(0, 0, backward - forward)
             sideVector.set(left - right, 0, 0)
             direction.subVectors(frontVector, sideVector).normalize().multiplyScalar(SPEED).applyEuler(state.camera.rotation)
-            rigidBody.current.setLinvel({ x: direction.x, y: velocity.y, z: direction.z })
+            player.current.setLinvel({ x: direction.x, y: velocity.y, z: direction.z })
+
+            // jumping
+            const world = rapier.world.raw()
+            const ray = world.castRay(new RAPIER.Ray(player.current.translation(), { x: 0, y: -1, z: 0 }))
+            const grounded = ray && ray.collider && Math.abs(ray.toi) <= 1.75
+            if (jump && grounded) player.current.setLinvel({ x: 0, y: 7.5, z: 0 })
         }
     })
 
     return (
-        <RigidBody ref={rigidBody} colliders={false} mass={1} type="dynamic" position={[0, 10, 0]} enabledRotations={[false, false, false]} >
+        <RigidBody ref={player} onSleep={() => player.current.wakeUp()} colliders={false} mass={1} type="dynamic" position={[0, 10, 0]} enabledRotations={[false, false, false]} >
             <CapsuleCollider args={[.75, .5]} />
         </RigidBody>
     )
@@ -72,6 +81,7 @@ function App() {
                 { name: "backward", keys: ["ArrowDown", "s", "S"] },
                 { name: "left", keys: ["ArrowLeft", "r", "A"] },
                 { name: "right", keys: ["ArrowRight", "t", "D"] },
+                { name: "jump", keys: ["Space"] },
             ]}>
                 <Canvas camera={{ fov: 120 }} >
                     <PointerLockControls />
