@@ -1,29 +1,69 @@
 import './App.css'
 import * as THREE from 'three'
 import * as RAPIER from '@dimforge/rapier3d-compat'
-import React, { Suspense, useRef, useEffect } from 'react'
-import { PerspectiveCamera } from 'three'
-import { Canvas, useFrame, useThree, } from '@react-three/fiber'
+import React, { Suspense, useRef, useState } from 'react'
+import { Canvas, useFrame, } from '@react-three/fiber'
 import { PointerLockControls, useKeyboardControls, KeyboardControls } from '@react-three/drei'
-import { Physics, RigidBody, useRapier, CapsuleCollider, Debug } from '@react-three/rapier'
+import { Physics, RigidBody, useRapier, CapsuleCollider } from '@react-three/rapier'
 
 
 function Orb() {
     return (
-        <RigidBody>
-            <mesh position={[5, 3, 0]}>
+        <RigidBody restitution={2.5}>
+            <mesh position={[5, 3, 0]} >
                 <sphereGeometry />
-                <meshBasicMaterial color='turquoise' />
+                <meshBasicMaterial color='black' />
             </mesh >
         </RigidBody >
     )
 }
 
-function Floor() {
+function Button() {
+    const [buttonClicked, setButtonClicked] = useState()
+
+    return (
+        <RigidBody mass={30}>
+            <mesh position={[-5, 2, 0]} onClick={() => setButtonClicked(!buttonClicked)}>
+                <boxGeometry />
+                <meshBasicMaterial color='black' />
+            </mesh >
+            <mesh position={[-5, 2.5, 0]}>
+                <boxGeometry args={[.3, .3, .3]} />
+                <meshBasicMaterial color={buttonClicked ? 'green' : 'red'} />
+            </mesh >
+        </RigidBody >
+    )
+}
+
+const roomSize = 200
+function Room() {
+    // TODO refactor into function 
+    // floor, south wall, north wall, east wall, west wall 
     return (
         <RigidBody>
-            <mesh position={[0, -2, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-                <planeGeometry args={[300, 300]} />
+            <mesh position={[0, 0, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+                <planeGeometry args={[roomSize, roomSize]} />
+                <meshStandardMaterial color='white' />
+            </mesh >
+
+            <mesh position={[0, roomSize / 2, roomSize / 2]} rotation={[-Math.PI / 1, 0, 0]}>
+                <planeGeometry args={[roomSize, roomSize]} />
+                <meshStandardMaterial color='white' />
+            </mesh >
+
+            <mesh position={[0, roomSize / 2, -roomSize / 2]} >
+                <planeGeometry args={[roomSize, roomSize]} />
+                <meshStandardMaterial color='white' />
+            </mesh >
+
+            <mesh position={[roomSize / 2, roomSize / 2, 0]} rotation={[0, -Math.PI / 2, 0]} >
+                <planeGeometry args={[roomSize, roomSize]} />
+                <meshStandardMaterial color='white' />
+            </mesh >
+
+            <mesh position={[-roomSize / 2, roomSize / 2, 0]} rotation={[0, Math.PI / 2, 0]} >
+                <planeGeometry args={[roomSize, roomSize]} />
+                <meshStandardMaterial color='white' />
             </mesh >
         </RigidBody >
     )
@@ -32,7 +72,7 @@ function Floor() {
 function Player() {
     const player = useRef()
 
-    const SPEED = 10
+    const SPEED = 5
     const direction = new THREE.Vector3()
     const frontVector = new THREE.Vector3()
     const sideVector = new THREE.Vector3()
@@ -55,8 +95,13 @@ function Player() {
             // strafing movement
             frontVector.set(0, 0, backward - forward)
             sideVector.set(left - right, 0, 0)
-            direction.subVectors(frontVector, sideVector).normalize().multiplyScalar(SPEED).applyEuler(state.camera.rotation)
+            direction.subVectors(frontVector, sideVector)
+                .normalize()
+                .multiplyScalar(SPEED)
+                .applyEuler(state.camera.rotation)
+
             player.current.setLinvel({ x: direction.x, y: velocity.y, z: direction.z })
+
 
             // jumping
             const world = rapier.world.raw()
@@ -67,7 +112,15 @@ function Player() {
     })
 
     return (
-        <RigidBody ref={player} onSleep={() => player.current.wakeUp()} colliders={false} mass={1} type="dynamic" position={[0, 10, 0]} enabledRotations={[false, false, false]} >
+        <RigidBody
+            ref={player}
+            onSleep={() => player.current.wakeUp()}
+            colliders={false}
+            mass={1}
+            type="dynamic"
+            position={[0, 5, 0]}
+            enabledRotations={[false, false, false]}
+        >
             <CapsuleCollider args={[.75, .5]} />
         </RigidBody>
     )
@@ -83,15 +136,15 @@ function App() {
                 { name: "right", keys: ["ArrowRight", "t", "D"] },
                 { name: "jump", keys: ["Space"] },
             ]}>
-                <Canvas camera={{ fov: 120 }} >
+                <Canvas camera={{ fov: 90 }} >
                     <PointerLockControls />
                     <Suspense>
                         <Physics gravity={[0, -9.8, 0]}>
-                            <Debug />
-                            <ambientLight color='white' intensity={0.3} />
+                            <ambientLight color='white' intensity={99} />
                             <Player />
                             <Orb />
-                            <Floor />
+                            <Button />
+                            <Room />
                         </Physics>
                     </Suspense>
                 </Canvas>
